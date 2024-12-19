@@ -3,7 +3,7 @@ use regex::Regex;
 use reqwest::{header, Client};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
-use std::time::Duration;
+use std::{error::Error, time::Duration};
 use tokio::time::sleep;
 
 fn sha256(s: String) -> String {
@@ -13,7 +13,7 @@ fn sha256(s: String) -> String {
     .collect()
 }
 
-async fn get_salt_key(client: &Client) -> Result<String, anyhow::Error> {
+async fn get_salt_key(client: &Client) -> Result<String, Box<dyn Error>> {
   let text = client
     .get("http://192.168.11.1/?_type=loginData&_tag=login_token")
     .send()
@@ -25,11 +25,11 @@ async fn get_salt_key(client: &Client) -> Result<String, anyhow::Error> {
   if let Some(first_find) = pattern.captures(&text).and_then(|c| c.get(1)) {
     Ok(first_find.as_str().to_string())
   } else {
-    Err(anyhow::anyhow!("No match"))
+    Err("No match found".into())
   }
 }
 
-async fn login(client: &Client) -> Result<(), anyhow::Error> {
+async fn login(client: &Client) -> Result<(), Box<dyn Error>> {
   dotenv::dotenv().ok();
   let password = std::env::var("PASSWORD").unwrap();
 
@@ -50,7 +50,7 @@ async fn login(client: &Client) -> Result<(), anyhow::Error> {
   Ok(())
 }
 
-async fn get_data(client: &Client) -> Result<Value, anyhow::Error> {
+async fn get_data(client: &Client) -> Result<Value, Box<dyn Error>> {
   let data: Value = client
     .get("http://192.168.11.1/?_type=menuData&_tag=topo_lua.lua")
     .send()
@@ -68,16 +68,14 @@ fn print_data(data: Value) {
     .filter(|(k, _)| *k != "MGET_INST_NUM")
     .for_each(|(_, v)| {
       println!(
-        "{:30} {:5} {:5} {:15} {}",
-        v["HostName"].as_str().unwrap(),
+        "{:14}  {:17}  {:4}  {:4}  {}",
+        v["IpAddr"].as_str().unwrap(),
+        v["MacAddr"].as_str().unwrap(),
         bps_to_mbps(v["TxRateBps"].as_str().unwrap()),
         bps_to_mbps(v["RxRateBps"].as_str().unwrap()),
-        v["IpAddr"].as_str().unwrap(),
-        v["MacAddr"].as_str().unwrap()
+        v["HostName"].as_str().unwrap(),
       )
     });
-
-  // println!("{}", (0..70).map(|_| "-").collect::<String>());
 }
 
 fn bps_to_mbps(s: &str) -> String {
@@ -86,7 +84,7 @@ fn bps_to_mbps(s: &str) -> String {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), anyhow::Error> {
+async fn main() -> Result<(), Box<dyn Error>> {
   let mut headers = header::HeaderMap::new();
 
   headers.insert(
