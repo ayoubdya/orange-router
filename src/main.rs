@@ -74,18 +74,8 @@ impl RouterScraper {
     }
   }
 
-  async fn logout(&self) -> Result<(), Box<dyn Error>> {
-    self
-      .client
-      .post("https://192.168.11.1/?_type=loginData&_tag=logout_entry")
-      .body("_type=loginData&_tag=logout_entry")
-      .send()
-      .await?;
-    Ok(())
-  }
-
   async fn get_data(&self) -> Result<Value, Box<dyn Error>> {
-    let data: Value = self
+    let data = self
       .client
       .get("http://192.168.11.1/?_type=menuData&_tag=topo_lua.lua")
       .send()
@@ -124,5 +114,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
     clearscreen::clear().unwrap();
     print_data(data);
     sleep(Duration::from_secs(1)).await;
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[tokio::test]
+  async fn test_scrape() {
+    let scraper = RouterScraper::new().unwrap();
+    scraper.login().await.unwrap();
+    scraper.get_data().await.unwrap();
   }
 }
