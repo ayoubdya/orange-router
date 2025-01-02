@@ -90,7 +90,7 @@ fn print_data(data: Value) {
   data["ad"]
     .as_object()
     .unwrap()
-    .iter()
+    .into_iter()
     .filter(|(k, _)| *k != "MGET_INST_NUM")
     .for_each(|(_, v)| {
       println!(
